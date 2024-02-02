@@ -65,6 +65,12 @@ def createIndex(indexName) :
     }
     es.indices.create(index=indexName, body=configurations)
 
+def addData(indexName, docID, text) :
+    es.index(index=indexName, 
+             document={
+                 'content' : text
+             }, id=docID)
+    
 allDocuments = {}
 # Read all the files documents to be indexed from the mentioned directory
 allFiles = "/Users/vanshitatilwani/Documents/Courses/CS6200/hw1-vanshita-tilwani/IR_data/IR_data/AP_DATA/ap89_collection"
@@ -82,3 +88,6 @@ es = Elasticsearch("http://localhost:9200")
 print(es.ping())
 indexName ="ap89_data0"
 createIndex(indexName)
+for document in allDocuments:
+    addData(indexName,document, allDocuments[document])
+print("Documents have been added to the index")
