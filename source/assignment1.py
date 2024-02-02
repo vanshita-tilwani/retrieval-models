@@ -27,6 +27,44 @@ def parseDocumentText(document: str) :
     pattern = '(?s)(?<=<TEXT>)(.*?)(?=</TEXT>)'
     return re.search(pattern, document).group().strip()
 
+# Create an Index in Elasticsearch
+def createIndex(indexName) :
+    configurations = {
+        "settings" : {
+            "number_of_shards": 1,
+            "number_of_replicas": 1,
+            "analysis": {
+                "filter": {
+                    "english_stop": {
+                        "type": "stop",
+                        "stopwords": getStopwords()
+                    }
+                },
+                "analyzer": {
+                    "stopped": {
+                        "type": "custom",
+                        "tokenizer": "standard",
+                        "filter": [
+                            "lowercase",
+                            "english_stop"
+                        ]
+                    }
+                }
+            }
+        },
+        "mappings": {
+            "properties": {
+                "content": {
+                    "type": "text",
+                    "fielddata": True,
+                    "analyzer": "stopped",
+                    "index_options": "positions"
+                }
+            }
+        }
+    }
+    es.indices.create(index=indexName, body=configurations)
+
 allDocuments = {}
 # Read all the files documents to be indexed from the mentioned directory
 allFiles = "/Users/vanshitatilwani/Documents/Courses/CS6200/hw1-vanshita-tilwani/IR_data/IR_data/AP_DATA/ap89_collection"
@@ -42,3 +80,5 @@ print('Done parsing documents')
 
 es = Elasticsearch("http://localhost:9200")
 print(es.ping())
+indexName ="ap89_data0"
+createIndex(indexName)
