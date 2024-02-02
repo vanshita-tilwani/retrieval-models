@@ -39,3 +39,6 @@ for filename in os.listdir(allFiles):
             docText = parseDocumentText(document)
             allDocuments[docID] = docText
 print('Done parsing documents')
+
+es = Elasticsearch("http://localhost:9200")
+print(es.ping())
