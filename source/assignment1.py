@@ -121,7 +121,7 @@ def ES_search(indexName, query) :
     return es.search(index=indexName, query={'match' : {'content' : query}}, size=1000)
 
 def OkapiTF(indexName, query) :
-    return es.search(index=index, body={
+    return es.search(index=indexName, body={
             "query": {
                 "match": {"text": query}
             },
