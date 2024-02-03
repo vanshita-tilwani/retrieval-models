@@ -116,6 +116,13 @@ def execute_queries(index):
                 docno = hit['_id']
                 score = hit['_score']
                 output_file.write(f"{query_number} Q0 {docno} {idx+1} {score} Exp\n")
+        
+        TfidfResponse = TFIDF(index, query_text)
+        with open(f'tfidf_results_{query_number}.txt', 'w') as output_file:
+            for idx, hit in enumerate(TfidfResponse['hits']['hits']):
+                docno = hit['_id']
+                score = hit['_score']
+                output_file.write(f"{query_number} Q0 {docno} {idx+1} {score} Exp\n")
 
 def ES_search(indexName, query) :
     return es.search(index=indexName, query={'match' : {'content' : query}}, size=1000)
@@ -123,13 +130,29 @@ def ES_search(indexName, query) :
 def OkapiTF(indexName, query) :
     return es.search(index=indexName, body={
             "query": {
-                "match": {"text": query}
+                "match": {"content": query}
             },
             "size": 1000, 
             "script_fields": {  
                 "okapi_tf_score": {
                     "script": {
                         "source": "0.5 + 1.5 * (doc['text'].tf() / (doc['text'].tf() + 0.5 + 1.5 * (len(doc['text']) / avg_len)))"
+                    }
+                }
+            },
+            "_source": False
+        })
+
+def TFIDF(indexName, query):
+    return es.search(index=indexName, body={
+            "query": {
+                "match": {"content": query}
+            },
+            "size": 1000,
+            "script_fields": { 
+                "tfidf_score": {
+                    "script": {
+                        "source": "doc['text'].tf() * Math.log(_index['text'].df + 1)"
                     }
                 }
             },
