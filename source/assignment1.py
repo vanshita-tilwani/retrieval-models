@@ -89,12 +89,14 @@ def fetchDocuments() :
     print('Done parsing documents')
     return allDocuments
 
+def indexDocuments(index_name) :
+    documents = fetchDocuments()
+    for document in documents:
+        addData(index_name,document, documents[document])
 # Main Program
-documents = fetchDocuments()
+
 es = Elasticsearch("http://localhost:9200")
-print(es.ping())
-indexName ="ap89_data0"
-createIndex(indexName)
-for document in documents:
-    addData(indexName,document, documents[document])
+index ="ap89_data0"
+createIndex(index)
+indexDocuments(index)
 print("Documents have been added to the index")
