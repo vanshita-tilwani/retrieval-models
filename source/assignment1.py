@@ -93,6 +93,26 @@ def indexDocuments(index_name) :
     documents = fetchDocuments()
     for document in documents:
         addData(index_name,document, documents[document])
+
+# Execute queries and retrieve results
+def execute_queries():
+    # Read queries from query file
+    with open('query_desc.51-100.short.txt', 'r') as query_file:
+        queries = query_file.readlines()
+
+    for query in queries:
+        # Parse the query and extract query number and text
+        query_number, query_text = query.split(' ', 1)
+        
+        response = es.search(index='your_index_name', body={"query": {"match": {"text": query_text}}})
+
+        # Process response and write results to output file
+        with open(f'results_{query_number}.txt', 'w') as output_file:
+            for idx, hit in enumerate(response['hits']['hits']):
+                docno = hit['_id']
+                score = hit['_score']
+                output_file.write(f"{query_number} Q0 {docno} {idx+1} {score} Exp\n")
+
 # Main Program
 
 es = Elasticsearch("http://localhost:9200")
@@ -100,3 +120,4 @@ index ="ap89_data0"
 createIndex(index)
 indexDocuments(index)
 print("Documents have been added to the index")
+execute_queries()
