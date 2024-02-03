@@ -71,9 +71,6 @@ def addData(indexName, docID, text) :
                  'content' : text
              }, id=docID)
 
-def ES_Search(indexName, query) :
-    return es.search(index=indexName, query={'match' : {'content' : query}}, size=1000)
-
 def fetchDocuments() : 
     allDocuments = {}
 # Read all the files documents to be indexed from the mentioned directory
@@ -95,7 +92,7 @@ def indexDocuments(index_name) :
         addData(index_name,document, documents[document])
 
 # Execute queries and retrieve results
-def execute_queries():
+def execute_queries(index):
     # Read queries from query file
     with open('query_desc.51-100.short.txt', 'r') as query_file:
         queries = query_file.readlines()
@@ -104,14 +101,16 @@ def execute_queries():
         # Parse the query and extract query number and text
         query_number, query_text = query.split(' ', 1)
         
-        response = es.search(index='your_index_name', body={"query": {"match": {"text": query_text}}})
+        esbuiltResponse = ES_search(index, query_text)
 
-        # Process response and write results to output file
-        with open(f'results_{query_number}.txt', 'w') as output_file:
-            for idx, hit in enumerate(response['hits']['hits']):
+        with open(f'esbuiltin_results_{query_number}.txt', 'w') as output_file:
+            for idx, hit in enumerate(esbuiltResponse['hits']['hits']):
                 docno = hit['_id']
                 score = hit['_score']
                 output_file.write(f"{query_number} Q0 {docno} {idx+1} {score} Exp\n")
+
+def ES_search(indexName, query) :
+    return es.search(index=indexName, query={'match' : {'content' : query}}, size=1000)
 
 # Main Program
 
@@ -120,4 +119,4 @@ index ="ap89_data0"
 createIndex(index)
 indexDocuments(index)
 print("Documents have been added to the index")
-execute_queries()
+execute_queries(index)
