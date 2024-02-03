@@ -102,9 +102,17 @@ def execute_queries(index):
         query_number, query_text = query.split(' ', 1)
         
         esbuiltResponse = ES_search(index, query_text)
-
+        
         with open(f'esbuiltin_results_{query_number}.txt', 'w') as output_file:
             for idx, hit in enumerate(esbuiltResponse['hits']['hits']):
+                docno = hit['_id']
+                score = hit['_score']
+                output_file.write(f"{query_number} Q0 {docno} {idx+1} {score} Exp\n")
+
+        okapiTFResponse = OkapiTF(index, query_text)
+
+        with open(f'okapitf_results_{query_number}.txt', 'w') as output_file:
+            for idx, hit in enumerate(okapiTFResponse['hits']['hits']):
                 docno = hit['_id']
                 score = hit['_score']
                 output_file.write(f"{query_number} Q0 {docno} {idx+1} {score} Exp\n")
@@ -112,7 +120,21 @@ def execute_queries(index):
 def ES_search(indexName, query) :
     return es.search(index=indexName, query={'match' : {'content' : query}}, size=1000)
 
-# Main Program
+def OkapiTF(indexName, query) :
+    return es.search(index=index, body={
+            "query": {
+                "match": {"text": query}
+            },
+            "size": 1000, 
+            "script_fields": {  
+                "okapi_tf_score": {
+                    "script": {
+                        "source": "0.5 + 1.5 * (doc['text'].tf() / (doc['text'].tf() + 0.5 + 1.5 * (len(doc['text']) / avg_len)))"
+                    }
+                }
+            },
+            "_source": False
+        })
 
 es = Elasticsearch("http://localhost:9200")
 index ="ap89_data0"
