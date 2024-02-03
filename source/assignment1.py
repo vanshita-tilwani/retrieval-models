@@ -70,24 +70,31 @@ def addData(indexName, docID, text) :
              document={
                  'content' : text
              }, id=docID)
-    
-allDocuments = {}
-# Read all the files documents to be indexed from the mentioned directory
-allFiles = "/Users/vanshitatilwani/Documents/Courses/CS6200/hw1-vanshita-tilwani/IR_data/IR_data/AP_DATA/ap89_collection"
-for filename in os.listdir(allFiles):
-    with open(os.path.join(allFiles, filename), 'rb') as f:
-        content = f.read().decode("iso-8859-1")
-        documents = parseDocuments(content)
-        for document in documents:
-            docID = parseDocumentID(document)
-            docText = parseDocumentText(document)
-            allDocuments[docID] = docText
-print('Done parsing documents')
 
+def ES_Search(indexName, query) :
+    return es.search(index=indexName, query={'match' : {'content' : query}}, size=1000)
+
+def fetchDocuments() : 
+    allDocuments = {}
+# Read all the files documents to be indexed from the mentioned directory
+    allFiles = "/Users/vanshitatilwani/Documents/Courses/CS6200/hw1-vanshita-tilwani/IR_data/IR_data/AP_DATA/ap89_collection"
+    for filename in os.listdir(allFiles):
+        with open(os.path.join(allFiles, filename), 'rb') as f:
+            content = f.read().decode("iso-8859-1")
+            documents = parseDocuments(content)
+            for document in documents:
+                docID = parseDocumentID(document)
+                docText = parseDocumentText(document)
+                allDocuments[docID] = docText
+    print('Done parsing documents')
+    return allDocuments
+
+# Main Program
+documents = fetchDocuments()
 es = Elasticsearch("http://localhost:9200")
 print(es.ping())
 indexName ="ap89_data0"
 createIndex(indexName)
-for document in allDocuments:
-    addData(indexName,document, allDocuments[document])
+for document in documents:
+    addData(indexName,document, documents[document])
 print("Documents have been added to the index")
