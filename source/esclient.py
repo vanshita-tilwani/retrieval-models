@@ -1,0 +1,106 @@
+from concurrent.futures import ThreadPoolExecutor
+from elasticsearch7 import Elasticsearch
+from constants import Constants
+from collections import OrderedDict
+
+def ExecuteQuery(type, query, documents) :
+    modifiedQuery = query_analyzer(query=query)
+    if(type == 'esbuiltin'):
+        return ES_search(query=modifiedQuery)
+    else :
+        if(len(term_vectors) == 0):
+            setTermVectors(documents)
+        if(type == 'okapitf'):
+            result = OkapiTF(query=modifiedQuery, documents=documents)
+            orderedResult = OrderedDict(sorted(result.items(), key=lambda x: x[1]))
+            scores = list(orderedResult.items())[::-1][:1000]
+            return scores
+        
+def ES_search(query) :
+    return es.search(index=index, query={'match' : {'content' : " ".join(query)}}, size=1000)
+
+def OkapiTF(query, documents) :
+    scores= OrderedDict()
+    averageLength = field_vectors['sum_ttf']/field_vectors['doc_count']
+    for document in documents:
+        score = 0
+        # TODO : check if this works
+        length = getDocumentLength(term_vectors[document])
+        for word in query:
+            if(word in term_vectors[document]):
+                tf = term_vectors[document][word]['term_freq']
+                denominator = tf + 0.5 + 1.5 * (length/averageLength)
+                currentScore = tf/denominator
+                score+= currentScore
+        if(score != 0.0):
+            scores[document] = score
+    return scores
+
+def getDocumentLength(term_vectors):
+        doc_length = 0
+
+        if len(term_vectors) == 0:
+            return 0
+        else:
+            for term in term_vectors:
+                doc_length += term_vectors[term]['term_freq']
+            return doc_length
+        
+def analyze_text(document_text):
+    try:
+        tokens = es.indices.analyze(body={"text": document_text, "analyzer": "standard"})
+        return len(tokens['tokens'])
+    except Exception as e:
+        print(f"Error analyzing text: {e}")
+        return 0
+    
+def query_analyzer(query) :
+    body = {
+        "tokenizer" : "standard",
+        "filter" : ["porter_stem", "lowercase"],
+        "text" : query
+    }
+    result = es.indices.analyze(body=body)
+    return [list['token'] for list in result['tokens']]
+
+def fetch_term_vectors(document):
+    body = {
+        'ids': [document],
+        'parameters': {
+            'fields': ['content'],
+            'field_statistics': True,
+            'term_statistics': True
+        }
+    }
+    term_vector = es.mtermvectors(index=index, body=body)
+    # Setting Field Statistics
+    if(len(field_vectors) == 0):
+        field_vectors = term_vector['docs'][0]['term_vectors']['content']['field_statistics']
+    if 'content' in term_vector['docs'][0]['term_vectors']:
+        return document, term_vector['docs'][0]['term_vectors']['content']['terms']
+    else:
+        return document, {}
+
+def setTermVectors(documents) :
+    with ThreadPoolExecutor() as executor:
+        # Submit tasks to fetch term vectors for each document
+        futures = {executor.submit(fetch_term_vectors, document): document for document in documents}
+        # Retrieve results
+        for future in futures:
+            document, term_vector = future.result()
+            term_vectors[document] = term_vector
+
+def getDocumentLength(term_vectors):
+        doc_length = 0
+
+        if len(term_vectors) == 0:
+            return 0
+        else:
+            for term in term_vectors:
+                doc_length += term_vectors[term]['term_freq']
+            return doc_length
+        
+es = Elasticsearch("http://localhost:9200")
+index = Constants.INDEX_NAME
+term_vectors = {}
+field_vectors = {}

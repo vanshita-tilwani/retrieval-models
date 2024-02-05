@@ -66,8 +66,13 @@ def fetchQueries():
 def OutputToFile(model, query_no, doc_no, rank, score):
     try:
         out = open(Constants.RESULTS_PATH + model + '.txt', 'a')
-        out.write(query_no + ' Q0 ' + doc_no + ' ' +
-                rank + ' ' + score + ' Exp\n')
+        out.write(str(query_no) + ' Q0 ' + str(doc_no) + ' ' +
+                str(rank) + ' ' + str(score) + ' Exp\n')
         out.close()
     except Exception as exception:
         print(exception)
+
+def DeleteResultFiles(model) :
+    file_path =  Constants.RESULTS_PATH+model+'.txt'
+    if(os.path.exists(file_path)):
+        os.remove(file_path)
