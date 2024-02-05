@@ -69,7 +69,7 @@ def createIndex() :
                     "english_stop": {
                         "type": "stop",
                         "stopwords": fetchStopwords()
-                    }
+                    },
                 },
                 "analyzer": {
                     "stopped": {
@@ -77,7 +77,8 @@ def createIndex() :
                         "tokenizer": "standard",
                         "filter": [
                             "lowercase",
-                            "english_stop"
+                            "english_stop",
+                            "porter_stem"
                         ]
                     }
                 }
@@ -158,14 +159,18 @@ def fetchTermVectors() :
         term_vectors[document] = es.mtermvectors(index= index, body=body)
     return term_vectors
 
-def ES_search(indexName, query) :
-    return es.search(index=indexName, query={'match' : {'content' : query}}, size=1000)
+def ES_search(query) :
+    return es.search(index=index, query={'match' : {'content' : query}}, size=1000)
 
-def OkapiTF(indexName, query) :
-    score = 0
+def OkapiTF(query) :
     term_vector = fetchTermVectors()
-    for word in query.split(" ") :
-        score += 1
+    scores = {}
+    for document in documents:
+        score = 0
+        # TODO : check if this works
+        length = len(documents[document])
+        for word in query.split(" "):
+            print('Hi')
 
 def TFIDF(indexName, query):
     return es.search(index=indexName, body={
@@ -187,7 +192,7 @@ def TFIDF(indexName, query):
 
 # Elastic Search Client and Index Name
 es = Elasticsearch("http://localhost:9200")
-index ="ap89_data0"
+index ="ap89_data1"
 documents = fetchDocuments()
 #createIndex()
 #print("Index with name : {index} has been created in Elastic Search")
@@ -196,9 +201,9 @@ documents = fetchDocuments()
 queries = fetchQueries()
 # ES Built In
 for query in queries :
-    esbuiltResponse = ES_search(index, queries[query])
+    esbuiltResponse = ES_search(queries[query])
         
-    with open(f'/Users/vanshitatilwani/Documents/Courses/CS6200/hw1-vanshita-tilwani/results/esbuiltin_results.txt', 'a') as output_file:
+    with open(f'/Users/vanshitatilwani/Documents/Courses/CS6200/hw1-vanshita-tilwani/trec_eval/esbuiltin_results.txt', 'a') as output_file:
         for idx, hit in enumerate(esbuiltResponse['hits']['hits']):
             docno = hit['_id']
             score = hit['_score']
