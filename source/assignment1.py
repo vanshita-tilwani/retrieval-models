@@ -2,7 +2,6 @@ from fileio import fetchQueries, fetchStopwords, fetchDocuments, OutputToFile, D
 from indexer import indexDocuments, doesIndexExist, getDocuments
 from esclient import ExecuteQuery
 
-
 isIndexAvailable = doesIndexExist()
 if(isIndexAvailable):
     documents = getDocuments()

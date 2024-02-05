@@ -8,8 +8,10 @@ def ExecuteQuery(type, query, documents) :
     if(type == 'esbuiltin'):
         return ES_search(query=modifiedQuery)
     else :
-        if(len(term_vectors) == 0):
-            setTermVectors(documents)
+        setFieldVectors(documents)
+        setTermVectors(documents)
+        
+        
         if(type == 'okapitf'):
             result = OkapiTF(query=modifiedQuery, documents=documents)
             orderedResult = OrderedDict(sorted(result.items(), key=lambda x: x[1]))
@@ -21,7 +23,7 @@ def ES_search(query) :
 
 def OkapiTF(query, documents) :
     scores= OrderedDict()
-    averageLength = field_vectors['sum_ttf']/field_vectors['doc_count']
+    averageLength = field_statistics['sum_ttf']/field_statistics['doc_count']
     for document in documents:
         score = 0
         # TODO : check if this works
@@ -68,20 +70,39 @@ def fetch_term_vectors(document):
         'ids': [document],
         'parameters': {
             'fields': ['content'],
-            'field_statistics': True,
             'term_statistics': True
         }
     }
     term_vector = es.mtermvectors(index=index, body=body)
     # Setting Field Statistics
-    if(len(field_vectors) == 0):
-        field_vectors = term_vector['docs'][0]['term_vectors']['content']['field_statistics']
     if 'content' in term_vector['docs'][0]['term_vectors']:
         return document, term_vector['docs'][0]['term_vectors']['content']['terms']
     else:
         return document, {}
 
+def fetch_field_statistics(document) :
+    body = {
+        'ids': [document],
+        'parameters': {
+            'fields': ['content'],
+            'field_statistics': True,
+        }
+    }
+    term_vector = es.mtermvectors(index=index, body=body)
+    # Setting Field Statistics
+    return term_vector['docs'][0]['term_vectors']['content']['field_statistics']
+    
+    
+def setFieldVectors(documents) :
+    global field_statistics
+    if(len(field_statistics) != 0):
+        return
+    field_statistics = fetch_field_statistics(list(documents.keys())[0])
+
 def setTermVectors(documents) :
+    global term_vectors
+    if(len(term_vectors) != 0):
+        return
     with ThreadPoolExecutor() as executor:
         # Submit tasks to fetch term vectors for each document
         futures = {executor.submit(fetch_term_vectors, document): document for document in documents}
@@ -103,4 +124,4 @@ def getDocumentLength(term_vectors):
 es = Elasticsearch("http://localhost:9200")
 index = Constants.INDEX_NAME
 term_vectors = {}
-field_vectors = {}
+field_statistics = {}
