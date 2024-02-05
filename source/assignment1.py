@@ -1,64 +1,7 @@
-import os
-import re
+from fileio import fetchQueries, fetchStopwords, fetchDocuments
 from elasticsearch7 import Elasticsearch
 from concurrent.futures import ThreadPoolExecutor
 from collections import OrderedDict
-
-
-# Region 1 - Text Pre - Processing i.e. fetching documents, stopwords and parsing the data
-
-# Read all the documents from the directory
-def fetchDocuments() : 
-    allDocuments = {}
-# Read all the files documents to be indexed from the mentioned directory
-    allFiles = "/Users/vanshitatilwani/Documents/Courses/CS6200/hw1-vanshita-tilwani/IR_data/IR_data/AP_DATA/ap89_collection"
-    for filename in os.listdir(allFiles):
-        with open(os.path.join(allFiles, filename), 'rb') as f:
-            content = f.read().decode("iso-8859-1")
-            documents = parseDocuments(content)
-            for document in documents:
-                docID = parseDocumentID(document)
-                docText = parseDocumentText(document)
-                allDocuments[docID] = docText
-    print('Done parsing documents')
-    return allDocuments
-
-# Read all the stop words from the stoplist.txt which will be used in preprocessing data
-def fetchStopwords() :
-    stopWordFile = "/Users/vanshitatilwani/Documents/Courses/CS6200/hw1-vanshita-tilwani/IR_data/IR_data/AP_DATA/stoplist.txt"
-    with open(stopWordFile, 'r') as f:
-        content = f.read()
-        names = content.split("\n")
-    return names
-
-# Read all the queries from the directory
-def fetchQueries() :
-    allQueries = "/Users/vanshitatilwani/Documents/Courses/CS6200/hw1-vanshita-tilwani/IR_data/IR_data/AP_DATA/query_desc.51-100.short.txt"
-    queries = {}
-    with open(allQueries, 'r') as f:
-        content = f.readlines()
-    for line in content:
-        query_no = int(line.split(".")[0])
-        query_text = line.split(".")[1].strip()
-        queries[query_no] = query_text
-    return queries
-
-# Parse all the documents from the given content
-def parseDocuments(content: str) :
-    pattern = '(?s)(?<=<DOC>)(.*?)(?=</DOC>)'
-    return re.findall(pattern, content)
-
-# Parse the document ID from the document
-def parseDocumentID(document: str) :
-    pattern = '(?s)(?<=<DOCNO>)(.*?)(?=</DOCNO>)'
-    return re.search(pattern, document).group().strip()
-
-# Parse the document text from the document
-def parseDocumentText(document: str) :
-    pattern = '(?s)(?<=<TEXT>)(.*?)(?=</TEXT>)'
-    return re.search(pattern, document).group().strip()
-
-# Region 2 - Elastic Search - Creating Index in Elastic Search and adding documents to the index
 
 # Create an Index in Elasticsearch
 def createIndex() :
@@ -116,16 +59,16 @@ def addData(indexName, docID, text) :
 # Execute queries and retrieve results
 
 def ES_search(query) :
-    return es.search(index=index, query={'match' : {'content' : query}}, size=1000)
+    return es.search(index=index, query={'match' : {'content' : query.join(' ')}}, size=1000)
 
 def OkapiTF(query) :
     scores= OrderedDict()
-    averageLength = word_count['total']/len(documents)
+    averageLength = 227.255396961
     for document in documents:
         score = 0
         # TODO : check if this works
-        length = word_count[document]
-        for word in query.split(" "):
+        length = getDocumentLength(term_vectors[document])
+        for word in query:
             if(word in term_vectors[document]):
                 tf = term_vectors[document][word]['term_freq']
                 denominator = tf + 0.5 + 1.5 * (length/averageLength)
@@ -134,6 +77,16 @@ def OkapiTF(query) :
         scores[document] = score
     return scores
 
+
+def getDocumentLength(term_vectors):
+        doc_length = 0
+
+        if len(term_vectors) == 0:
+            return 0
+        else:
+            for term in term_vectors:
+                doc_length += term_vectors[term]['term_freq']
+            return doc_length
 
 def TFIDF(indexName, query):
     return es.search(index=indexName, body={
@@ -168,7 +121,7 @@ def fetch_term_vectors(document):
         return document, term_vector['docs'][0]['term_vectors']['content']['terms']
     else:
         return document, {}
-    
+
 def fetchTermVectors() :
     term_vectors = {}
     with ThreadPoolExecutor() as executor:
@@ -179,7 +132,7 @@ def fetchTermVectors() :
             document, term_vector = future.result()
             term_vectors[document] = term_vector
     return term_vectors
-    
+
 def analyze_text(document_text):
     try:
         tokens = es.indices.analyze(body={"text": document_text, "analyzer": "standard"})
@@ -187,7 +140,7 @@ def analyze_text(document_text):
     except Exception as e:
         print(f"Error analyzing text: {e}")
         return 0
-    
+
 def fetchWordCount() :
     word_count = {}
     total_word_count = 0
@@ -204,36 +157,44 @@ def fetchWordCount() :
                 print(f"Error processing document {document_id}: {e}")
     word_count['total'] = total_word_count
     return word_count
+
+def query_analyzer(query) :
+    body = {
+        "tokenizer" : "standard",
+        "filter" : ["porter_stem", "lowercase"],
+        "text" : query
+    }
+    result = es.indices.analyze(body=body)
+    return [list['token'] for list in result['tokens']]
 # Main Program 
 
 # Elastic Search Client and Index Name
 es = Elasticsearch("http://localhost:9200")
 index ="ap89_data1"
 documents = fetchDocuments()
-#createIndex()
-#print("Index with name : {index} has been created in Elastic Search")
-#indexDocuments()
-#print("All the documents have been added to the elasticsearch index named {index}")
+createIndex()
+print("Index with name : {index} has been created in Elastic Search")
+indexDocuments()
+print("All the documents have been added to the elasticsearch index named {index}")
 
 queries = fetchQueries()
 
 
 # ES Built In
-for query in queries :
-    esbuiltResponse = ES_search(queries[query])
-        
+'''for query in queries :
+    esbuiltResponse = ES_search(queries[query])  
     with open(f'/Users/vanshitatilwani/Documents/Courses/CS6200/hw1-vanshita-tilwani/trec_eval/esbuiltin_results.txt', 'a') as output_file:
         for idx, hit in enumerate(esbuiltResponse['hits']['hits']):
             docno = hit['_id']
             score = hit['_score']
-            output_file.write(f"{query} Q0 {docno} {idx+1} {score} Exp\n")
+            output_file.write(f"{query} Q0 {docno} {idx+1} {score} Exp\n")'''
 
 term_vectors  = fetchTermVectors()
-word_count = fetchWordCount()
 
 # Okapi TF
 for query in queries :
-    scores = OkapiTF(queries[query])
+    modifiedQuery = query_analyzer(query=queries[query])
+    scores = OkapiTF(modifiedQuery)
     sortedScores = OrderedDict(sorted(scores.items(), key=lambda x: x[1]))
     okapiTfResponse = list(sortedScores.items())[::-1][:1000]
     with open(f'/Users/vanshitatilwani/Documents/Courses/CS6200/hw1-vanshita-tilwani/trec_eval/okapitf_results.txt', 'a') as output_file:
