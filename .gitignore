@@ -1,0 +1,13 @@
+.DS_Store
+config/
+Deliverables/
+IR_data/
+results/
+trec_eval/
+*.[o]
+*.out
+*.app
+*.exe
+*.so
+*.dylib
+*.dll
