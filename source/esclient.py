@@ -2,6 +2,8 @@ from concurrent.futures import ThreadPoolExecutor
 from elasticsearch7 import Elasticsearch
 from constants import Constants
 from collections import OrderedDict
+import math
+
 
 def ExecuteQuery(type, query, documents) :
     modifiedQuery = query_analyzer(query=query)
@@ -21,21 +23,47 @@ def ExecuteQuery(type, query, documents) :
 def ES_search(query) :
     return es.search(index=index, query={'match' : {'content' : " ".join(query)}}, size=1000)
 
+def okapitf_wd(tf, length) :
+    averageLength = field_statistics['sum_ttf']/field_statistics['doc_count']
+    okapitf = denominator = tf + 0.5 + 1.5 * (length/averageLength) 
+    return okapitf
+
+def tfidf_wd(tf, df, length) :
+    totalDocs = field_statistics['doc_count']
+    okapitf_wd = okapitf_wd(tf, length)
+    tfidf = okapitf_wd * math.log(totalDocs/df)
+    return tfidf
+
 def OkapiTF(query, documents) :
     scores= OrderedDict()
-    averageLength = field_statistics['sum_ttf']/field_statistics['doc_count']
     for document in documents:
-        score = 0
+        okapitf = 0
         # TODO : check if this works
         length = getDocumentLength(term_vectors[document])
         for word in query:
             if(word in term_vectors[document]):
                 tf = term_vectors[document][word]['term_freq']
-                denominator = tf + 0.5 + 1.5 * (length/averageLength)
-                currentScore = tf/denominator
-                score+= currentScore
-        if(score != 0.0):
-            scores[document] = score
+                okapitf_wd = okapitf_wd(tf, length)
+                okapitf+= okapitf_wd
+        if(okapitf != 0.0):
+            scores[document] = okapitf
+    return scores
+
+def TFIDF(query, documents) :
+    scores= OrderedDict()
+    
+    for document in documents:
+        tfidf = 0
+        # TODO : check if this works
+        length = getDocumentLength(term_vectors[document])
+        for word in query:
+            if(word in term_vectors[document]):
+                tf = term_vectors[document][word]['term_freq']
+                df = term_vectors[document][word]['doc_freq']
+                tfidf_wd = tfidf_wd(tf, df, length)
+                tfidf+= tfidf_wd
+        if(tfidf != 0.0):
+            scores[document] = tfidf
     return scores
 
 def getDocumentLength(term_vectors):
