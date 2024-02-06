@@ -1,11 +1,8 @@
 from nltk.stem import PorterStemmer
 import re
 
-def sanitize(text):
-    return text.strip().replace('\n', '')
-
 def RemovePunctuation(text):
-    punctuations = ['.', '`', ',', '"', '-', '(', ')', '\'']
+    punctuations = ['.', '`', ',', '"', '-', '(', ')', '\'', '$', ':', ';', '_', '\'']
     for p in punctuations:
         text = text.replace(p, ' ')
     return text
@@ -14,23 +11,16 @@ def RemoveNewLineCharacter(text) :
     text = text.replace("\n", ' ')
     return text
 
-def StemSentences(text):
-    stemmer = PorterStemmer()
-
-    words = text.split(' ')
+def StemSentences(words):
     for i in range(len(words)):
         words[i] = stemmer.stem(words[i])
-    return ' '.join(words)
+    return words
 
-def RemoveStopwords(stopwords, text):
-    text = text.lower()
-    words = text.split(" ")
+def RemoveStopwords(stopwords, words):
     for s in stopwords:
         while s in words:
             words.remove(s)
-    text = ' '.join(words)
-    
-    return text
+    return words
 
 # Parse all the documents from the given content
 def ParseDocuments(content: str) :
@@ -45,4 +35,6 @@ def ParseDocumentID(document: str) :
 # Parse the document text from the document
 def ParseDocumentText(document: str) :
     pattern = '(?s)(?<=<TEXT>)(.*?)(?=</TEXT>)'
-    return re.search(pattern, document).group().strip()
+    return " ".join(re.findall(pattern, document))
+
+stemmer = PorterStemmer()

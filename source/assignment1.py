@@ -14,6 +14,7 @@ indexDocuments(documents=documents, stopwords=stopwords)
 queries = fetchQueries()
 
 models = ['okapitf', 'tfidf', 'bm25', 'unigramlm_laplace', 'unigramlm_jelinekmercer']
+
 DeleteResultFiles('esbuiltin')
 for model in models:
     DeleteResultFiles(model)

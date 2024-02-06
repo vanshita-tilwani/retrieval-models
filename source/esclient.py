@@ -13,33 +13,30 @@ def ExecuteQuery(type, query, documents) :
         setVocabSize()
         setFieldVectors(documents)
         setTermVectors(documents)
-        if(type == 'okapitf'):
-            result = OkapiTF(query=modifiedQuery, documents=documents)
-        if(type == 'tfidf'):
-            result = TFIDF(query=modifiedQuery, documents=documents)
-        if(type == 'bm25'):
-            result = BM25(query=modifiedQuery, documents=documents)
-        if(type == 'unigramlm_laplace'):
-            result = UnigramLM_Laplace(query=modifiedQuery, documents=documents)
-        if(type == 'unigramlm_jelinekmercer'):
-            result = UnigramLM_JelinekMercer(query=modifiedQuery, documents=documents)
+        result = executeModel(type, modifiedQuery, documents)
         orderedResult = OrderedDict(sorted(result.items(), key=lambda x: x[1]))
         scores = list(orderedResult.items())[::-1][:1000]
         return scores
         
-def okapitf_by_term_and_document(tf, length) :
+def okapitf_by_term_and_document(word, document) :
+    tf = term_vectors[document][word]['term_freq']
+    length = getDocumentLength(term_vectors[document])
     averageLength = field_statistics['sum_ttf']/field_statistics['doc_count']
     denominator = tf + 0.5 + 1.5 * (length/averageLength) 
     okapitf = tf/denominator
     return okapitf
 
-def tfidf_by_term_and_document(tf, df, length) :
+def tfidf_by_term_and_document(word, document) :
     totalDocs = field_statistics['doc_count']
-    okapitf_wd = okapitf_by_term_and_document(tf, length)
+    df = term_vectors[document][word]['doc_freq']
+    okapitf_wd = okapitf_by_term_and_document(word, document)
     tfidf = okapitf_wd * math.log(totalDocs/df)
     return tfidf
 
-def bm25_by_term_and_document(tf, df, length,qf =1) :
+def bm25_by_term_and_document(word, document, qf=1) :
+    tf = term_vectors[document][word]['term_freq']
+    df = term_vectors[document][word]['doc_freq']
+    length = getDocumentLength(term_vectors[document])
     totalDocs = field_statistics['doc_count']
     averageLength = field_statistics['sum_ttf']/field_statistics['doc_count']
     firstTerm = math.log((totalDocs + 0.5)/(df+0.5))
@@ -48,11 +45,16 @@ def bm25_by_term_and_document(tf, df, length,qf =1) :
     bm25 = firstTerm * secondTerm * thirdTerm
     return bm25
 
-def lm_laplace_by_term_and_document(tf, length) :
+def lm_laplace_by_term_and_document(word, document) :
+    length = getDocumentLength(term_vectors[document])
+    tf = term_vectors[document][word]['term_freq']
     result = (tf + 1)/(length + vocab_size)
     return result
 
-def lm_jelinek_mercer_by_term_and_document(tf, length, ttf) :
+def lm_jelinek_mercer_by_term_and_document(word, document) :
+    tf = term_vectors[document][word]['term_freq']
+    ttf = term_vectors[document][word]['ttf']
+    length = getDocumentLength(term_vectors[document])
     total_length = field_statistics['sum_ttf']
     foreground = Constants.CORPUS_PROB * (tf/length)
     background = (1 - Constants.CORPUS_PROB) * ((ttf - tf)/(total_length - length))
@@ -62,86 +64,45 @@ def lm_jelinek_mercer_by_term_and_document(tf, length, ttf) :
 def ES_search(query) :
     return es.search(index=index, query={'match' : {'content' : " ".join(query)}}, size=1000)
 
-def OkapiTF(query, documents) :
+def calculateScore(type, query, word, document) :
+    match type:
+        case 'okapitf' :
+            return okapitf_by_term_and_document(word, document)
+        case 'tfidf' :
+            return tfidf_by_term_and_document(word, document)
+        case 'bm25' :
+            return bm25_by_term_and_document(word, document, query.count(word))
+        case 'unigramlm_laplace' :
+            return lm_laplace_by_term_and_document(word, document)
+        case 'unigramlm_jelinekmercer' :
+            return lm_jelinek_mercer_by_term_and_document(word, document)
+
+def calculateScoreForMissingTerm(type) :
+    match type:
+        case 'okapitf' :
+            return 0.0
+        case 'tfidf' :
+            return 0.0
+        case 'bm25' :
+            return 0.0
+        case 'unigramlm_laplace' :
+            return -1000.0
+        case 'unigramlm_jelinekmercer' :
+            return -1000.0
+        
+def executeModel(type, query, documents) :
     scores= OrderedDict()
     for document in documents:
-        okapitf = 0
-        # TODO : check if this works
-        length = getDocumentLength(term_vectors[document])
+        score = 0
         for word in query:
             if(word in term_vectors[document]):
-                tf = term_vectors[document][word]['term_freq']
-                okapitf_wd = okapitf_by_term_and_document(tf, length)
-                okapitf+= okapitf_wd
-        if(okapitf != 0.0):
-            scores[document] = okapitf
+                score_wd = calculateScore(type, query, word, document)
+            else :
+                score_wd = calculateScoreForMissingTerm(type)
+            score+= score_wd
+        scores[document] = score
     return scores
 
-def TFIDF(query, documents) :
-    scores= OrderedDict()
-    
-    for document in documents:
-        tfidf = 0
-        # TODO : check if this works
-        length = getDocumentLength(term_vectors[document])
-        for word in query:
-            if(word in term_vectors[document]):
-                tf = term_vectors[document][word]['term_freq']
-                df = term_vectors[document][word]['doc_freq']
-                tfidf_wd = tfidf_by_term_and_document(tf, df, length)
-                tfidf+= tfidf_wd
-        if(tfidf != 0.0):
-            scores[document] = tfidf
-    return scores
-
-def BM25(query, documents) :
-    scores= OrderedDict()
-    for document in documents:
-        bm25 = 0
-        # TODO : check if this works
-        length = getDocumentLength(term_vectors[document])
-        for word in query:
-            if(word in term_vectors[document]):
-                tf = term_vectors[document][word]['term_freq']
-                df = term_vectors[document][word]['doc_freq']
-                bm25_wd = bm25_by_term_and_document(tf, df, length, query.count(word))
-                bm25+= bm25_wd
-        if(bm25 != 0.0):
-            scores[document] = bm25
-    return scores
-
-def UnigramLM_Laplace(query, documents) :
-    scores= OrderedDict()
-    for document in documents:
-        lm_laplace = 0
-        # TODO : check if this works
-        length = getDocumentLength(term_vectors[document])
-        for word in query:
-            if(word in term_vectors[document]):
-                tf = term_vectors[document][word]['term_freq']
-                lm_laplace_wd = lm_laplace_by_term_and_document(tf, length)
-                lm_laplace+= lm_laplace_wd
-            else:
-                lm_laplace+= (-1000.0)
-        scores[document] = lm_laplace
-    return scores
-
-def UnigramLM_JelinekMercer(query, documents) :
-    scores= OrderedDict()
-    for document in documents:
-        lm_jm = 0
-        # TODO : check if this works
-        length = getDocumentLength(term_vectors[document])
-        for word in query:
-            if(word in term_vectors[document]):
-                tf = term_vectors[document][word]['term_freq']
-                ttf = term_vectors[document][word]['ttf']
-                lm_jm_wd = lm_jelinek_mercer_by_term_and_document(tf, length, ttf)
-                lm_jm+= lm_jm_wd
-            else:
-                lm_jm+= (-1000.0)
-        scores[document] = lm_jm
-    return scores
 
 def getDocumentLength(term_vectors):
         doc_length = 0
