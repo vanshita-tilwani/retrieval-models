@@ -12,25 +12,26 @@ def ExecuteQuery(type, query, documents) :
     else :
         setFieldVectors(documents)
         setTermVectors(documents)
-        
-        
         if(type == 'okapitf'):
             result = OkapiTF(query=modifiedQuery, documents=documents)
-            orderedResult = OrderedDict(sorted(result.items(), key=lambda x: x[1]))
-            scores = list(orderedResult.items())[::-1][:1000]
-            return scores
+        if(type == 'tfidf'):
+            result = TFIDF(query=modifiedQuery, documents=documents)
+        orderedResult = OrderedDict(sorted(result.items(), key=lambda x: x[1]))
+        scores = list(orderedResult.items())[::-1][:1000]
+        return scores
         
 def ES_search(query) :
     return es.search(index=index, query={'match' : {'content' : " ".join(query)}}, size=1000)
 
-def okapitf_wd(tf, length) :
+def okapitf_by_term_and_document(tf, length) :
     averageLength = field_statistics['sum_ttf']/field_statistics['doc_count']
-    okapitf = denominator = tf + 0.5 + 1.5 * (length/averageLength) 
+    denominator = tf + 0.5 + 1.5 * (length/averageLength) 
+    okapitf = tf/denominator
     return okapitf
 
-def tfidf_wd(tf, df, length) :
+def tfidf_by_term_and_document(tf, df, length) :
     totalDocs = field_statistics['doc_count']
-    okapitf_wd = okapitf_wd(tf, length)
+    okapitf_wd = okapitf_by_term_and_document(tf, length)
     tfidf = okapitf_wd * math.log(totalDocs/df)
     return tfidf
 
@@ -43,7 +44,7 @@ def OkapiTF(query, documents) :
         for word in query:
             if(word in term_vectors[document]):
                 tf = term_vectors[document][word]['term_freq']
-                okapitf_wd = okapitf_wd(tf, length)
+                okapitf_wd = okapitf_by_term_and_document(tf, length)
                 okapitf+= okapitf_wd
         if(okapitf != 0.0):
             scores[document] = okapitf
@@ -60,7 +61,7 @@ def TFIDF(query, documents) :
             if(word in term_vectors[document]):
                 tf = term_vectors[document][word]['term_freq']
                 df = term_vectors[document][word]['doc_freq']
-                tfidf_wd = tfidf_wd(tf, df, length)
+                tfidf_wd = tfidf_by_term_and_document(tf, df, length)
                 tfidf+= tfidf_wd
         if(tfidf != 0.0):
             scores[document] = tfidf
