@@ -59,8 +59,7 @@ def createIndex(stopwords) :
                         "tokenizer": "standard",
                         "filter": [
                             "lowercase",
-                            "english_stop",
-                            "porter_stem"
+                            "english_stop"
                         ]
                     }
                 }

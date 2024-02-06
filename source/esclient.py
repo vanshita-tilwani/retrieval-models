@@ -165,7 +165,7 @@ def analyze_text(document_text):
 def query_analyzer(query) :
     body = {
         "tokenizer" : "standard",
-        "filter" : ["porter_stem", "lowercase"],
+        "filter" : [ "lowercase"],
         "text" : query
     }
     result = es.indices.analyze(body=body)
