@@ -14,7 +14,7 @@ print("All the documents have been added to the elasticsearch index named {index
 
 queries = fetchQueries()
 
-models = ['okapitf', 'tfidf', 'bm25']
+models = ['okapitf', 'tfidf', 'bm25', 'unigramlm_laplace']
 DeleteResultFiles('esbuiltin')
 for model in models:
     DeleteResultFiles(model)

@@ -10,6 +10,7 @@ def ExecuteQuery(type, query, documents) :
     if(type == 'esbuiltin'):
         return ES_search(query=modifiedQuery)
     else :
+        setVocabSize()
         setFieldVectors(documents)
         setTermVectors(documents)
         if(type == 'okapitf'):
@@ -18,13 +19,12 @@ def ExecuteQuery(type, query, documents) :
             result = TFIDF(query=modifiedQuery, documents=documents)
         if(type == 'bm25'):
             result = BM25(query=modifiedQuery, documents=documents)
+        if(type == 'unigramlm_laplace'):
+            result = UnigramLM_Laplace(query=modifiedQuery, documents=documents)
         orderedResult = OrderedDict(sorted(result.items(), key=lambda x: x[1]))
         scores = list(orderedResult.items())[::-1][:1000]
         return scores
         
-def ES_search(query) :
-    return es.search(index=index, query={'match' : {'content' : " ".join(query)}}, size=1000)
-
 def okapitf_by_term_and_document(tf, length) :
     averageLength = field_statistics['sum_ttf']/field_statistics['doc_count']
     denominator = tf + 0.5 + 1.5 * (length/averageLength) 
@@ -45,6 +45,13 @@ def bm25_by_term_and_document(tf, df, length,qf =1) :
     thirdTerm = (qf + Constants.BM25_K2*qf)/(Constants.BM25_K2 + qf)
     bm25 = firstTerm * secondTerm * thirdTerm
     return bm25
+
+def lm_laplace_by_term_and_document(tf, length) :
+    result = (tf + 1)/(length + vocab_size)
+    return result
+
+def ES_search(query) :
+    return es.search(index=index, query={'match' : {'content' : " ".join(query)}}, size=1000)
 
 def OkapiTF(query, documents) :
     scores= OrderedDict()
@@ -94,6 +101,22 @@ def BM25(query, documents) :
             scores[document] = bm25
     return scores
 
+def UnigramLM_Laplace(query, documents) :
+    scores= OrderedDict()
+    for document in documents:
+        lm_laplace = 0
+        # TODO : check if this works
+        length = getDocumentLength(term_vectors[document])
+        for word in query:
+            if(word in term_vectors[document]):
+                tf = term_vectors[document][word]['term_freq']
+                lm_laplace_wd = lm_laplace_by_term_and_document(tf, length)
+                lm_laplace+= lm_laplace_wd
+            else:
+                lm_laplace+= (-1000.0)
+        scores[document] = lm_laplace
+    return scores
+
 def getDocumentLength(term_vectors):
         doc_length = 0
 
@@ -120,6 +143,18 @@ def query_analyzer(query) :
     }
     result = es.indices.analyze(body=body)
     return [list['token'] for list in result['tokens']]
+
+def fetch_unique_term_count() :
+    response = es.search(body= {
+        "aggs": {
+            "unique_term_count": {
+            "cardinality": {
+                "field": "content"
+                }
+            }
+        }
+    })
+    return response['aggregations']['unique_term_count']['value']
 
 def fetch_term_vectors(document):
     body = {
@@ -167,6 +202,12 @@ def setTermVectors(documents) :
             document, term_vector = future.result()
             term_vectors[document] = term_vector
 
+def setVocabSize() :
+    global vocab_size
+    if(vocab_size != 0):
+        return
+    vocab_size = fetch_unique_term_count()
+
 def getDocumentLength(term_vectors):
         doc_length = 0
 
@@ -181,3 +222,4 @@ es = Elasticsearch("http://localhost:9200")
 index = Constants.INDEX_NAME
 term_vectors = {}
 field_statistics = {}
+vocab_size = 0
