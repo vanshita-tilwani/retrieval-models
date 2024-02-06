@@ -16,6 +16,8 @@ def ExecuteQuery(type, query, documents) :
             result = OkapiTF(query=modifiedQuery, documents=documents)
         if(type == 'tfidf'):
             result = TFIDF(query=modifiedQuery, documents=documents)
+        if(type == 'bm25'):
+            result = BM25(query=modifiedQuery, documents=documents)
         orderedResult = OrderedDict(sorted(result.items(), key=lambda x: x[1]))
         scores = list(orderedResult.items())[::-1][:1000]
         return scores
@@ -34,6 +36,15 @@ def tfidf_by_term_and_document(tf, df, length) :
     okapitf_wd = okapitf_by_term_and_document(tf, length)
     tfidf = okapitf_wd * math.log(totalDocs/df)
     return tfidf
+
+def bm25_by_term_and_document(tf, df, length,qf =1) :
+    totalDocs = field_statistics['doc_count']
+    averageLength = field_statistics['sum_ttf']/field_statistics['doc_count']
+    firstTerm = math.log((totalDocs + 0.5)/(df+0.5))
+    secondTerm = (tf + Constants.BM25_K1 * tf)/(tf + Constants.BM25_K1*((1-Constants.BM25_B) + Constants.BM25_B * length/averageLength))
+    thirdTerm = (qf + Constants.BM25_K2*qf)/(Constants.BM25_K2 + qf)
+    bm25 = firstTerm * secondTerm * thirdTerm
+    return bm25
 
 def OkapiTF(query, documents) :
     scores= OrderedDict()
@@ -65,6 +76,22 @@ def TFIDF(query, documents) :
                 tfidf+= tfidf_wd
         if(tfidf != 0.0):
             scores[document] = tfidf
+    return scores
+
+def BM25(query, documents) :
+    scores= OrderedDict()
+    for document in documents:
+        bm25 = 0
+        # TODO : check if this works
+        length = getDocumentLength(term_vectors[document])
+        for word in query:
+            if(word in term_vectors[document]):
+                tf = term_vectors[document][word]['term_freq']
+                df = term_vectors[document][word]['doc_freq']
+                bm25_wd = bm25_by_term_and_document(tf, df, length, query.count(word))
+                bm25+= bm25_wd
+        if(bm25 != 0.0):
+            scores[document] = bm25
     return scores
 
 def getDocumentLength(term_vectors):

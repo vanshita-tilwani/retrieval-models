@@ -3,7 +3,7 @@ from constants import Constants
 
 # Indexing the documents in Elasticsearch
 def indexDocuments(documents, stopwords) :
-    if(doesIndexExist):
+    if(doesIndexExist()):
         return
     createIndex(stopwords)
     for document in documents:
@@ -29,7 +29,7 @@ def getDocuments(scroll_size=1000):
         scroll_id = response["_scroll_id"]
         response = es.scroll(scroll_id=scroll_id, scroll="1m")
         for hit in response["hits"]["hits"]:
-            documents[hit["_id"]] = hit["_source"]
+            documents[hit["_id"]] = hit["_source"]['content']
 
     return documents
 
