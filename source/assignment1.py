@@ -24,13 +24,12 @@ for query in queries :
     esbuiltInScores = ExecuteQuery('esbuiltin', query=queries[query], documents=documents)
     for idx, hit in enumerate(esbuiltInScores['hits']['hits']):
         OutputToFile('esbuiltin', query, hit['_id'], idx+1, hit['_score'])
-        #print(f'Esbuilt executed for Query with ID : {str(query)}')
+        print(f'Esbuilt executed for Query with ID : {str(query)}')
     
     for model in models:
         modelScore = ExecuteQuery(model, query=queries[query], documents=documents)
         for index, (document, score)in enumerate(modelScore):
             OutputToFile(model, query, document, index+1, score)
-            #print(f'{model.upper()} executed for Query with ID : {str(query)}')
-    print(f'Completed : {str(index)}')
+            print(f'{model.upper()} executed for Query with ID : {str(query)}')
     index += 1
                     
