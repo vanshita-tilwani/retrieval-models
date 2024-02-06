@@ -21,6 +21,8 @@ def ExecuteQuery(type, query, documents) :
             result = BM25(query=modifiedQuery, documents=documents)
         if(type == 'unigramlm_laplace'):
             result = UnigramLM_Laplace(query=modifiedQuery, documents=documents)
+        if(type == 'unigramlm_jelinekmercer'):
+            result = UnigramLM_JelinekMercer(query=modifiedQuery, documents=documents)
         orderedResult = OrderedDict(sorted(result.items(), key=lambda x: x[1]))
         scores = list(orderedResult.items())[::-1][:1000]
         return scores
@@ -49,6 +51,13 @@ def bm25_by_term_and_document(tf, df, length,qf =1) :
 def lm_laplace_by_term_and_document(tf, length) :
     result = (tf + 1)/(length + vocab_size)
     return result
+
+def lm_jelinek_mercer_by_term_and_document(tf, length, ttf, corpus_probablity) :
+    total_length = field_statistics['sum_ttf']
+    foreground = corpus_probablity * (tf/length)
+    background = (1 - corpus_probablity) * ((ttf - tf)/(total_length - length))
+    score = foreground + background
+    return math.log(score)
 
 def ES_search(query) :
     return es.search(index=index, query={'match' : {'content' : " ".join(query)}}, size=1000)
@@ -115,6 +124,24 @@ def UnigramLM_Laplace(query, documents) :
             else:
                 lm_laplace+= (-1000.0)
         scores[document] = lm_laplace
+    return scores
+
+def UnigramLM_JelinekMercer(query, documents) :
+    scores= OrderedDict()
+    for document in documents:
+        lm_jm = 0
+        # TODO : check if this works
+        length = getDocumentLength(term_vectors[document])
+        for word in query:
+            if(word in term_vectors[document]):
+                tf = term_vectors[document][word]['term_freq']
+                ttf = term_vectors[document][word]['ttf']
+                corpus_probablity = 0.3
+                lm_jm_wd = lm_jelinek_mercer_by_term_and_document(tf, length, ttf, corpus_probablity)
+                lm_jm+= lm_jm_wd
+            else:
+                lm_jm+= (-1000.0)
+        scores[document] = lm_jm
     return scores
 
 def getDocumentLength(term_vectors):

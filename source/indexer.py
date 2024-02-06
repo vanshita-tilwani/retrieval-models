@@ -8,7 +8,7 @@ def indexDocuments(documents, stopwords) :
     createIndex(stopwords)
     for document in documents:
         addData(index,document, documents[document])
-    print("Documents have been added to the index with name : {index}")
+    print(f"Documents have been added to the index with name : {index}")
 
 def doesIndexExist() :
     return es.indices.exists(index=index)
@@ -78,7 +78,7 @@ def createIndex(stopwords) :
         }
     }
     es.indices.create(index=index, body=configurations)
-    print("Index with name : {index} has been created in Elastic Search")
+    print(f"Index with name : {index} has been created in Elastic Search")
 
 
 

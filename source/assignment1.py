@@ -10,11 +10,10 @@ else:
 
 stopwords = fetchStopwords()
 indexDocuments(documents=documents, stopwords=stopwords)
-print("All the documents have been added to the elasticsearch index named {index}")
 
 queries = fetchQueries()
 
-models = ['okapitf', 'tfidf', 'bm25', 'unigramlm_laplace']
+models = ['okapitf', 'tfidf', 'bm25', 'unigramlm_laplace', 'unigramlm_jelinekmercer']
 DeleteResultFiles('esbuiltin')
 for model in models:
     DeleteResultFiles(model)
@@ -23,12 +22,9 @@ for query in queries :
     esbuiltInScores = ExecuteQuery('esbuiltin', query=queries[query], documents=documents)
     for idx, hit in enumerate(esbuiltInScores['hits']['hits']):
         OutputToFile('esbuiltin', query, hit['_id'], idx+1, hit['_score'])
-        print(f'ES_BUILTIN executed for Query with ID : {str(query)}')
-    
+
     for model in models:
         modelScore = ExecuteQuery(model, query=queries[query], documents=documents)
         for index, (document, score)in enumerate(modelScore):
             OutputToFile(model, query, document, index+1, score)
-            print(f'{model.upper()} executed for Query with ID : {str(query)}')
-
-    print('Done')         
+    print(f'All models executed for Query with ID : {str(query)}')        
