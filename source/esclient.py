@@ -52,10 +52,10 @@ def lm_laplace_by_term_and_document(tf, length) :
     result = (tf + 1)/(length + vocab_size)
     return result
 
-def lm_jelinek_mercer_by_term_and_document(tf, length, ttf, corpus_probablity) :
+def lm_jelinek_mercer_by_term_and_document(tf, length, ttf) :
     total_length = field_statistics['sum_ttf']
-    foreground = corpus_probablity * (tf/length)
-    background = (1 - corpus_probablity) * ((ttf - tf)/(total_length - length))
+    foreground = Constants.CORPUS_PROB * (tf/length)
+    background = (1 - Constants.CORPUS_PROB) * ((ttf - tf)/(total_length - length))
     score = foreground + background
     return math.log(score)
 
@@ -136,8 +136,7 @@ def UnigramLM_JelinekMercer(query, documents) :
             if(word in term_vectors[document]):
                 tf = term_vectors[document][word]['term_freq']
                 ttf = term_vectors[document][word]['ttf']
-                corpus_probablity = 0.3
-                lm_jm_wd = lm_jelinek_mercer_by_term_and_document(tf, length, ttf, corpus_probablity)
+                lm_jm_wd = lm_jelinek_mercer_by_term_and_document(tf, length, ttf)
                 lm_jm+= lm_jm_wd
             else:
                 lm_jm+= (-1000.0)
