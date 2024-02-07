@@ -11,7 +11,7 @@ def init(documents):
     setTermVectors(documents)
 
 def ExecuteQuery(type, query, documents) :
-    modifiedQuery = query_analyzer(query=query)
+    modifiedQuery = query.split(' ')
     if(type == Constants.ES_BUILT_IN):
         return ES_search(query=modifiedQuery)
     else :
@@ -65,7 +65,7 @@ def lm_jelinek_mercer_by_term_and_document(word, document) :
     ttf = term_vectors[document][word]['ttf']
     length = getDocumentLength(term_vectors[document])
     total_length = field_statistics['sum_ttf']
-    foreground = Constants.CORPUS_PROB * (tf/length)
+    foreground = Constants.CORPUS_PROB * (tf/vocab_size)
     background = (1 - Constants.CORPUS_PROB) * ((ttf - tf)/(total_length - length))
     score = foreground + background
     return math.log(score)
