@@ -15,6 +15,7 @@ class Constants:
     CORPUS_PROB = 0.99
     RELEVANCE_MODEL = OKAPI_TF
     RELEVANCY_FEEDBACK_QUERY_EXP_COUNT = 3
+    ES_RELEVANCY_FEEDBACK_EXP_COUNT = 10
     RESULTS_PATH = '/Users/vanshitatilwani/Documents/Courses_Local/hw1-vanshita-tilwani/trec_eval/'
     STOPWORDS_PATH = '/Users/vanshitatilwani/Documents/Courses_Local/hw1-vanshita-tilwani/IR_data/AP_DATA/stoplist.txt'
     QUERY_PATH = '/Users/vanshitatilwani/Documents/Courses_Local/hw1-vanshita-tilwani/IR_data/AP_DATA/modified_queries.txt'

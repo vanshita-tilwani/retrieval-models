@@ -1,6 +1,6 @@
 from fileio import fetchQueries, fetchStopwords, fetchDocuments, WriteToResults, DeleteResultFiles, OutputToFile, FetchHighRankedDocumentsForEachQuery
 from indexer import indexDocuments, doesIndexExist, getDocuments
-from esclient import ExecuteQuery, getMostDistinctiveTerms, init
+from esclient import ExecuteQuery, getMostDistinctiveTerms, init, getSignificantTerms
 from constants import Constants
 
 # Pre-processing documents and indexing them to elastic search
@@ -37,19 +37,21 @@ for query in queries :
         WriteToResults(model, query, score)
     print(f'All models executed for Query with ID : {str(query)}')
 
-# Pseudo-Relevance General Algorithm
+# Pseudo-Relevance using General Algorithm and ES Significant Terms API
 
 DeleteResultFiles(Constants.RELEVANCE_MODEL+'_with_general_relevancy')
+DeleteResultFiles(Constants.RELEVANCE_MODEL+'_with_esfeedback')
 
 topDocuments = FetchHighRankedDocumentsForEachQuery()
 most_distinct_terms = getMostDistinctiveTerms(topDocuments)
-
+significant_terms = getSignificantTerms(queries, stopwords)
 for query in queries :
-    updatedQuery = queries[query] +' '+ most_distinct_terms[query]
-    score = ExecuteQuery(Constants.RELEVANCE_MODEL, query=updatedQuery, documents=documents)
-    WriteToResults(Constants.RELEVANCE_MODEL+"_with_general_relevancy", query, score)
-    print(f'{Constants.RELEVANCE_MODEL} executed with Relevance Feedback for the following updated query  : "{str(updatedQuery)}"')
-     
-
-
-     
+    updatedQuery_General = queries[query] +' '+ most_distinct_terms[query]
+    general_score = ExecuteQuery(Constants.RELEVANCE_MODEL, query=updatedQuery_General, documents=documents)
+    WriteToResults(Constants.RELEVANCE_MODEL+"_with_general_relevancy", query, general_score)
+    print(f'{Constants.RELEVANCE_MODEL} executed with General Algorithm for Relevance Feedback for the following updated query  : "{str(updatedQuery_General)}"')
+    
+    updatedQuery_ES = queries[query] +' '+ significant_terms[query]
+    es_score = ExecuteQuery(Constants.RELEVANCE_MODEL, query=updatedQuery_ES, documents=documents)
+    WriteToResults(Constants.RELEVANCE_MODEL+"_with_esfeedback", query, es_score)
+    print(f'{Constants.RELEVANCE_MODEL} executed with Relevance Feedback using ES Significant Terms for the following updated query  : "{str(updatedQuery_ES)}"')
