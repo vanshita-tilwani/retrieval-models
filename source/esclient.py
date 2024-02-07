@@ -3,21 +3,30 @@ from elasticsearch7 import Elasticsearch
 from constants import Constants
 from collections import OrderedDict
 import math
+from collections import Counter
 
+def init(documents):
+    setVocabSize()
+    setFieldVectors(documents)
+    setTermVectors(documents)
 
 def ExecuteQuery(type, query, documents) :
     modifiedQuery = query_analyzer(query=query)
-    if(type == 'esbuiltin'):
+    if(type == Constants.ES_BUILT_IN):
         return ES_search(query=modifiedQuery)
     else :
-        setVocabSize()
-        setFieldVectors(documents)
-        setTermVectors(documents)
         result = executeModel(type, modifiedQuery, documents)
         orderedResult = OrderedDict(sorted(result.items(), key=lambda x: x[1]))
         scores = list(orderedResult.items())[::-1][:1000]
         return scores
-        
+
+def TFIDFScore(term, document) :
+    tf = term_vectors[document][term]['term_freq']
+    d = field_statistics['doc_count']
+    df = term_vectors[document][term]['doc_freq']
+    score = math.log(1 + tf, 2) * math.log(d / df)
+    return score
+  
 def okapitf_by_term_and_document(word, document) :
     tf = term_vectors[document][word]['term_freq']
     length = getDocumentLength(term_vectors[document])
@@ -66,28 +75,28 @@ def ES_search(query) :
 
 def calculateScore(type, query, word, document) :
     match type:
-        case 'okapitf' :
+        case Constants.OKAPI_TF :
             return okapitf_by_term_and_document(word, document)
-        case 'tfidf' :
+        case Constants.TF_IDF :
             return tfidf_by_term_and_document(word, document)
-        case 'bm25' :
+        case Constants.BM_25 :
             return bm25_by_term_and_document(word, document, query.count(word))
-        case 'unigramlm_laplace' :
+        case Constants.LM_LAPLACE :
             return lm_laplace_by_term_and_document(word, document)
-        case 'unigramlm_jelinekmercer' :
+        case Constants.LM_JELINEKMERCER :
             return lm_jelinek_mercer_by_term_and_document(word, document)
 
 def calculateScoreForMissingTerm(type) :
     match type:
-        case 'okapitf' :
+        case Constants.OKAPI_TF :
             return 0.0
-        case 'tfidf' :
+        case Constants.TF_IDF :
             return 0.0
-        case 'bm25' :
+        case Constants.BM_25 :
             return 0.0
-        case 'unigramlm_laplace' :
+        case Constants.LM_LAPLACE :
             return -1000.0
-        case 'unigramlm_jelinekmercer' :
+        case Constants.LM_JELINEKMERCER :
             return -1000.0
         
 def executeModel(type, query, documents) :
@@ -181,7 +190,7 @@ def setTermVectors(documents) :
     global term_vectors
     if(len(term_vectors) != 0):
         return
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=16) as executor:
         # Submit tasks to fetch term vectors for each document
         futures = {executor.submit(fetch_term_vectors, document): document for document in documents}
         # Retrieve results
@@ -204,7 +213,22 @@ def getDocumentLength(term_vectors):
             for term in term_vectors:
                 doc_length += term_vectors[term]['term_freq']
             return doc_length
-        
+
+def getMostDistinctiveTerms(documentsByQuery):
+    terms = {}
+    for query in documentsByQuery:
+        tfidf_by_term = {}
+        for document in documentsByQuery[query]:
+            for term in term_vectors[document]:
+                tfidf_by_term[term] = TFIDFScore(term, document)
+        terms[query] = tfidf_by_term
+    distinctive_terms = {} 
+    for query in terms:
+        index = Counter(terms[query])
+        top = index.most_common(Constants.RELEVANCY_FEEDBACK_QUERY_EXP_COUNT)
+        distinctive_terms[query] = ' '.join([i[0] for i in top])
+    return distinctive_terms
+
 es = Elasticsearch("http://localhost:9200")
 index = Constants.INDEX_NAME
 term_vectors = {}
