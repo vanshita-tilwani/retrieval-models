@@ -73,7 +73,6 @@ def WriteToResults(model, query, score_without_relevancy):
     except Exception as exception:
         print(exception)
 
-#Outputs the data into file
 def OutputToFile(model, query_no, doc_no, rank, score):
     try:
         out = open(Constants.RESULTS_PATH + model + '.txt', 'a')

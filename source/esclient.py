@@ -41,11 +41,7 @@ def getHighTFIDFTermsInCorpus(most_significant_terms, stopwords):
         terms_idf = {}
         for term in most_significant_terms[query]:
             if term not in stopwords:
-                df = 100
-                if term in term_statistics_in_corpus:
-                    df = term_statistics_in_corpus[term]['doc_freq']
-                idf = math.log(field_statistics['doc_count']/df)
-                terms_idf[term] = idf
+                terms_idf[term] = TFIDFScoreByTermInCorpus(term)
         idf_scores[query] = terms_idf
         
     most_high_idf_terms = {} 
@@ -160,23 +156,6 @@ def getDocumentLength(term_vectors):
             for term in term_vectors:
                 doc_length += term_vectors[term]['term_freq']
             return doc_length
-        
-def analyze_text(document_text):
-    try:
-        tokens = es.indices.analyze(body={"text": document_text, "analyzer": "standard"})
-        return len(tokens['tokens'])
-    except Exception as e:
-        print(f"Error analyzing text: {e}")
-        return 0
-    
-def query_analyzer(query) :
-    body = {
-        "tokenizer" : "standard",
-        "filter" : [ "lowercase"],
-        "text" : query
-    }
-    result = es.indices.analyze(body=body)
-    return [list['token'] for list in result['tokens']]
 
 def fetch_unique_term_count() :
     response = es.search(body= {
@@ -250,16 +229,6 @@ def setVocabSize() :
     if(vocab_size != 0):
         return
     vocab_size = fetch_unique_term_count()
-
-def getDocumentLength(term_vectors):
-        doc_length = 0
-
-        if len(term_vectors) == 0:
-            return 0
-        else:
-            for term in term_vectors:
-                doc_length += term_vectors[term]['term_freq']
-            return doc_length
 
 def getMostDistinctiveTerms(documentsByQuery):
     terms = {}

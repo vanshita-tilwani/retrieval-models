@@ -7,8 +7,7 @@ class Constants:
     LM_LAPLACE = 'unigramlm_laplace'
     LM_JELINEKMERCER = 'unigramlm_jelinekmercer'
     DATA_PATH = '/Users/vanshitatilwani/Documents/Courses_Local/hw1-vanshita-tilwani/IR_data/AP_DATA/ap89_collection'
-    DOC_TYPE = 'document'
-    INDEX_NAME = 'ap_collection_with_filtered_stopwords'
+    INDEX_NAME = 'ap_collection'
     BM25_K1 = 1.2
     BM25_B = 0.75
     BM25_K2 = 0
