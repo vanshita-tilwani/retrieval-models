@@ -135,7 +135,7 @@ def getHighTFIDFTermsInCorpus(most_significant_terms, stopwords):
         terms_idf = {}
         for term in most_significant_terms[query]:
             if term not in stopwords:
-                terms_idf[term] = TFIDFScoreByTermInCorpus(term)
+                terms_idf[term] = most_significant_terms[query][term] * TFIDFScoreByTermInCorpus(term)
         idf_scores[query] = terms_idf
         
     most_high_idf_terms = {} 
