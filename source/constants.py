@@ -17,4 +17,4 @@ class Constants:
     ES_RELEVANCY_FEEDBACK_EXP_COUNT = 10
     RESULTS_PATH = '/Users/vanshitatilwani/Documents/Courses_Local/hw1-vanshita-tilwani/trec_eval/'
     STOPWORDS_PATH = '/Users/vanshitatilwani/Documents/Courses_Local/hw1-vanshita-tilwani/resources/stoplist.txt'
-    QUERY_PATH = '/Users/vanshitatilwani/Documents/Courses_Local/hw1-vanshita-tilwani/IR_data/resources/modified_queries.txt'
+    QUERY_PATH = '/Users/vanshitatilwani/Documents/Courses_Local/hw1-vanshita-tilwani/resources/modified_queries.txt'
