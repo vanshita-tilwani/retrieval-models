@@ -61,6 +61,16 @@ def fetchQueries():
     except Exception as exception:
         print(exception)
 
+# Fetching high ranked documents from the model retrieval result
+def FetchHighRankedDocumentsForEachQuery():
+    documents = {}
+    for line in open(Constants.RESULTS_PATH +Constants.RELEVANCE_MODEL + '.txt', 'r'):
+        [query, q0, document, rank, score, exp]= line.split(' ')
+        if int(rank) == 1:
+            documents[query] = [document]
+    return documents
+
+# Method to write the model retrieval output results to file
 def WriteToResults(model, query, score_without_relevancy):
     relevant_documents = []
     try:
@@ -73,6 +83,7 @@ def WriteToResults(model, query, score_without_relevancy):
     except Exception as exception:
         print(exception)
 
+# Method to write ES built in model output results to file
 def OutputToFile(model, query_no, doc_no, rank, score):
     try:
         out = open(Constants.RESULTS_PATH + model + '.txt', 'a')
@@ -82,17 +93,10 @@ def OutputToFile(model, query_no, doc_no, rank, score):
     except Exception as exception:
         print(exception)
 
+# Method to delete results file before each execution
 def DeleteResultFiles(model) :
     file_path =  Constants.RESULTS_PATH+model+'.txt'
     if(os.path.exists(file_path)):
         os.remove(file_path)
-
-def FetchHighRankedDocumentsForEachQuery():
-    documents = {}
-    for line in open(Constants.RESULTS_PATH +Constants.RELEVANCE_MODEL + '.txt', 'r'):
-        [query, q0, document, rank, score, exp]= line.split(' ')
-        if int(rank) == 1:
-            documents[query] = [document]
-    return documents
 
 stopwords = fetchStopwords()

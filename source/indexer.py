@@ -13,6 +13,7 @@ def indexDocuments(documents, stopwords) :
 def doesIndexExist() :
     return es.indices.exists(index=index)
 
+# Reading all the documents from elastic search if already indexed
 def getDocuments(scroll_size=1000):
 
     initial_query = {

@@ -1,21 +1,25 @@
 from nltk.stem import PorterStemmer
 import re
 
+# Removing punctuations from the text
 def RemovePunctuation(text):
     punctuations = ['.', '`', ',', '"', '-', '(', ')', '\'', '$', ':', ';', '_', '\'']
     for p in punctuations:
         text = text.replace(p, ' ')
     return text
 
+# Removing new line character from the text
 def RemoveNewLineCharacter(text) :
     text = text.replace("\n", ' ')
     return text
 
+# Stemming the words i.e. bringing them to their root form
 def StemSentences(words):
     for i in range(len(words)):
         words[i] = stemmer.stem(words[i])
     return words
 
+# Removing stopwords from the text
 def RemoveStopwords(stopwords, words):
     for s in stopwords:
         while s in words:

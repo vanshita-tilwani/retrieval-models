@@ -5,12 +5,17 @@ from collections import OrderedDict
 import math
 from collections import Counter
 
+# Region Initialization
+
+# Initializes vocab size, field vectors, term vectors and terms for entire corpus which
+# will be used in models
 def init(documents):
     setVocabSize()
     setFieldVectors(documents)
     setTermVectors(documents)
     setCorpusTermStatistics(documents)
 
+# Executes query for given documents on model specified by type
 def ExecuteQuery(type, query, documents) :
     modifiedQuery = query.split(' ')
     if(type == Constants.ES_BUILT_IN):
@@ -21,6 +26,99 @@ def ExecuteQuery(type, query, documents) :
         scores = list(orderedResult.items())[::-1][:1000]
         return scores
 
+# Executing the query based on model
+def executeModel(type, query, documents) :
+    scores= OrderedDict()
+    for document in documents:
+        score = 0
+        for word in query:
+            if(word in term_vectors[document]):
+                score_wd = calculateScore(type, query, word, document)
+            else :
+                score_wd = calculateScoreForMissingTerm(type, document, word)
+            score+= score_wd
+        scores[document] = score
+    return scores
+
+# Calculates score for a term in a document based on specified model
+def calculateScore(type, query, word, document) :
+    match type:
+        case Constants.OKAPI_TF :
+            return okapitf_by_term_and_document(word, document)
+        case Constants.TF_IDF :
+            return tfidf_by_term_and_document(word, document)
+        case Constants.BM_25 :
+            return bm25_by_term_and_document(word, document, query.count(word))
+        case Constants.LM_LAPLACE :
+            return lm_laplace_by_term_and_document(word, document)
+        case Constants.LM_JELINEKMERCER :
+            return lm_jelinek_mercer_by_term_and_document(word, document)
+
+# Calculates score for a term that is missing in a document based on specified model
+def calculateScoreForMissingTerm(type, document, word) :
+    match type:
+        case Constants.OKAPI_TF :
+            return 0.0
+        case Constants.TF_IDF :
+            return 0.0
+        case Constants.BM_25 :
+            return 0.0
+        case Constants.LM_LAPLACE :
+            return -1000.0
+        case Constants.LM_JELINEKMERCER :
+            return lm_jelinek_mercer_by_term_and_document_for_missing_terms(word, document)
+
+# Psuedo - Relevance Feedback Helpers
+
+# Method to fetch the most distinctive terms of a set of document (i.e. high TFIDF score)
+def getMostDistinctiveTerms(documentsByQuery):
+    terms = {}
+    for query in documentsByQuery:
+        tfidf_by_term = {}
+        for document in documentsByQuery[query]:
+            for term in term_vectors[document]:
+                tfidf_by_term[term] = TFIDFScoreByTermInDocument(term, document)
+        terms[query] = tfidf_by_term
+    distinctive_terms = {} 
+    for query in terms:
+        index = Counter(terms[query])
+        top = index.most_common(Constants.RELEVANCY_FEEDBACK_QUERY_EXP_COUNT)
+        distinctive_terms[query] = ' '.join([i[0] for i in top])
+    return distinctive_terms
+
+# Method to fetch the most significant terms using ES API
+def getSignificantTerms(queries, stopwords):
+    significant_terms = {}
+    for query in queries:
+        significant_terms[query] = Counter()
+        for word in queries[query].split(' '):
+            body = {
+                "query": {
+                    "terms": {"content": [word]}
+                },
+                "aggregations": {
+                    "significantCrimeTypes": {
+                        "significant_terms": {
+                            "field": "content"
+                        }
+                    }
+                },
+                "size": 0
+            }
+            response = es.search(index=Constants.INDEX_NAME, body=body)
+            terms = response['aggregations']['significantCrimeTypes']['buckets']
+            for term in terms:
+                if term['key'] != word:
+                    significant_terms[query][term['key']] += 1
+
+    most_significant_terms = {}
+    for query in significant_terms:
+        top = significant_terms[query].most_common(Constants.ES_RELEVANCY_FEEDBACK_EXP_COUNT)
+        most_significant_terms[query] = top
+    return getHighTFIDFTermsInCorpus(most_significant_terms, stopwords)
+
+# Private Helper Methods to evaluate score for each retrieval model
+  
 def TFIDFScoreByTermInDocument(term, document) :
     tf = term_vectors[document][term]['term_freq']
     d = field_statistics['doc_count']
@@ -107,46 +205,6 @@ def lm_jelinek_mercer_by_term_and_document_for_missing_terms(word, document):
 def ES_search(query) :
     return es.search(index=index, query={'match' : {'content' : " ".join(query)}}, size=1000)
 
-def calculateScore(type, query, word, document) :
-    match type:
-        case Constants.OKAPI_TF :
-            return okapitf_by_term_and_document(word, document)
-        case Constants.TF_IDF :
-            return tfidf_by_term_and_document(word, document)
-        case Constants.BM_25 :
-            return bm25_by_term_and_document(word, document, query.count(word))
-        case Constants.LM_LAPLACE :
-            return lm_laplace_by_term_and_document(word, document)
-        case Constants.LM_JELINEKMERCER :
-            return lm_jelinek_mercer_by_term_and_document(word, document)
-
-def calculateScoreForMissingTerm(type, document, word) :
-    match type:
-        case Constants.OKAPI_TF :
-            return 0.0
-        case Constants.TF_IDF :
-            return 0.0
-        case Constants.BM_25 :
-            return 0.0
-        case Constants.LM_LAPLACE :
-            return -1000.0
-        case Constants.LM_JELINEKMERCER :
-            return lm_jelinek_mercer_by_term_and_document_for_missing_terms(word, document)
-            
-def executeModel(type, query, documents) :
-    scores= OrderedDict()
-    for document in documents:
-        score = 0
-        for word in query:
-            if(word in term_vectors[document]):
-                score_wd = calculateScore(type, query, word, document)
-            else :
-                score_wd = calculateScoreForMissingTerm(type, document, word)
-            score+= score_wd
-        scores[document] = score
-    return scores
-
-
 def getDocumentLength(term_vectors):
         doc_length = 0
 
@@ -229,52 +287,6 @@ def setVocabSize() :
     if(vocab_size != 0):
         return
     vocab_size = fetch_unique_term_count()
-
-def getMostDistinctiveTerms(documentsByQuery):
-    terms = {}
-    for query in documentsByQuery:
-        tfidf_by_term = {}
-        for document in documentsByQuery[query]:
-            for term in term_vectors[document]:
-                tfidf_by_term[term] = TFIDFScoreByTermInDocument(term, document)
-        terms[query] = tfidf_by_term
-    distinctive_terms = {} 
-    for query in terms:
-        index = Counter(terms[query])
-        top = index.most_common(Constants.RELEVANCY_FEEDBACK_QUERY_EXP_COUNT)
-        distinctive_terms[query] = ' '.join([i[0] for i in top])
-    return distinctive_terms
-
-def getSignificantTerms(queries, stopwords):
-    significant_terms = {}
-    for query in queries:
-        significant_terms[query] = Counter()
-        for word in queries[query].split(' '):
-            body = {
-                "query": {
-                    "terms": {"content": [word]}
-                },
-                "aggregations": {
-                    "significantCrimeTypes": {
-                        "significant_terms": {
-                            "field": "content"
-                        }
-                    }
-                },
-                "size": 0
-            }
-            response = es.search(index=Constants.INDEX_NAME, body=body)
-            terms = response['aggregations']['significantCrimeTypes']['buckets']
-            for term in terms:
-                if term['key'] != word:
-                    significant_terms[query][term['key']] += 1
-
-    most_significant_terms = {}
-    for query in significant_terms:
-        top = significant_terms[query].most_common(Constants.ES_RELEVANCY_FEEDBACK_EXP_COUNT)
-        most_significant_terms[query] = top
-    return getHighTFIDFTermsInCorpus(most_significant_terms, stopwords)
-
 
 es = Elasticsearch("http://localhost:9200")
 index = Constants.INDEX_NAME
