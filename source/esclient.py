@@ -111,11 +111,7 @@ def getSignificantTerms(queries, stopwords):
                 if term['key'] != word:
                     significant_terms[query][term['key']] += 1
 
-    most_significant_terms = {}
-    for query in significant_terms:
-        top = significant_terms[query].most_common(Constants.ES_RELEVANCY_FEEDBACK_EXP_COUNT)
-        most_significant_terms[query] = top
-    return getHighTFIDFTermsInCorpus(most_significant_terms, stopwords)
+    return getHighTFIDFTermsInCorpus(significant_terms, stopwords)
 
 # Private Helper Methods to evaluate score for each retrieval model
   
@@ -146,7 +142,7 @@ def getHighTFIDFTermsInCorpus(most_significant_terms, stopwords):
     for query in idf_scores:
         c = Counter(idf_scores[query])
         top = c.most_common(Constants.RELEVANCY_FEEDBACK_QUERY_EXP_COUNT)
-        most_high_idf_terms[query] = ' '.join([i[0][0] for i in top])
+        most_high_idf_terms[query] = ' '.join([i[0] for i in top])
 
     return most_high_idf_terms
 

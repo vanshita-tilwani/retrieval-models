@@ -54,7 +54,7 @@ for model in models :
         else:
             WriteToResults(model+"_with_general_relevancy", query, general_score)
         print(f'{model} executed with General Algorithm for Relevance Feedback for the following updated query  : "{str(updatedQuery_General)}"')
-
+        
 # Pseudo-relevance Feedback using Elastic Search "Significant Term" API
 
 for model in models:
