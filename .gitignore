@@ -11,3 +11,4 @@ trec_eval/
 *.so
 *.dylib
 *.dll
+__pycache__/
