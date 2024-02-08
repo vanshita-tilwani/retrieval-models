@@ -13,7 +13,7 @@ class Constants:
     BM25_K2 = 0
     CORPUS_PROB = 0.99
     RELEVANCE_MODEL = OKAPI_TF
-    RELEVANCY_FEEDBACK_QUERY_EXP_COUNT = 3
+    RELEVANCY_FEEDBACK_QUERY_EXP_COUNT = 5
     ES_RELEVANCY_FEEDBACK_EXP_COUNT = 10
     RESULTS_PATH = '/Users/vanshitatilwani/Documents/Courses_Local/hw1-vanshita-tilwani/trec_eval/'
     STOPWORDS_PATH = '/Users/vanshitatilwani/Documents/Courses_Local/hw1-vanshita-tilwani/resources/stoplist.txt'

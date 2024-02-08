@@ -62,9 +62,9 @@ def fetchQueries():
         print(exception)
 
 # Fetching high ranked documents from the model retrieval result
-def FetchHighRankedDocumentsForEachQuery():
+def FetchHighRankedDocumentsForEachQuery(model):
     documents = {}
-    for line in open(Constants.RESULTS_PATH +Constants.RELEVANCE_MODEL + '.txt', 'r'):
+    for line in open(Constants.RESULTS_PATH +model + '.txt', 'r'):
         [query, q0, document, rank, score, exp]= line.split(' ')
         if int(rank) == 1:
             documents[query] = [document]
@@ -84,11 +84,11 @@ def WriteToResults(model, query, score_without_relevancy):
         print(exception)
 
 # Method to write ES built in model output results to file
-def OutputToFile(model, query_no, doc_no, rank, score):
+def WriteToResults_ES(model, query, scores):
     try:
         out = open(Constants.RESULTS_PATH + model + '.txt', 'a')
-        out.write(str(query_no) + ' Q0 ' + str(doc_no) + ' ' +
-                str(rank) + ' ' + str(score) + ' Exp\n')
+        for idx, hit in enumerate(scores['hits']['hits']):
+            out.write(str(query) + ' Q0 ' + str( hit['_id']) + ' ' +str((idx+1)) + ' ' + str(hit['_score']) + ' Exp\n')
         out.close()
     except Exception as exception:
         print(exception)
