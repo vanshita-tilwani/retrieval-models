@@ -1,7 +1,4 @@
-
-Retrieval Models
-
-## Objective
+## Retrieval Models
 
 This repository involves writing two main programs:
 
